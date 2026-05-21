@@ -18,8 +18,10 @@ WORKDIR /opt/app
 
 COPY package.json ./
 
+ENV NODE_ENV=development
+
 RUN npm config set fetch-retry-maxtimeout 600000 -g \
-  && npm install
+  && npm install --include=dev
 
 COPY . .
 
