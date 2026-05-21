@@ -4,7 +4,21 @@ services:
     image: vshadbolt/strapi:5.46.0
     restart: always
     environment:
-      NODE_ENV: production  # Overrides the development value from .env
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 1337
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: strapiDB
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      APP_KEYS: ${APP_KEYS}
+      API_TOKEN_SALT: ${API_TOKEN_SALT}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      TRANSFER_TOKEN_SALT: ${TRANSFER_TOKEN_SALT}
+      JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
     ports:
       - "127.0.0.1:1337:1337"
     networks:
@@ -15,8 +29,8 @@ services:
 
   strapiDB:
     container_name: strapiDB
-    restart: always
     image: postgres:16-alpine
+    restart: always
     environment:
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
