@@ -20,7 +20,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
     ports:
-      - "127.0.0.1:1337:1337"
+      - "1337:1337"
     networks:
       - strapi
     depends_on:
