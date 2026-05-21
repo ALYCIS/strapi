@@ -12,18 +12,30 @@ WORKDIR /opt
 RUN corepack enable
 
 ARG STRAPI_VERSION=latest
+
+ARG DATABASE_HOST=strapiDB
+ARG DATABASE_PORT=5432
+ARG DATABASE_NAME=strapi
+ARG DATABASE_USERNAME=strapi
+ARG DATABASE_PASSWORD=strapi
+
 ENV NODE_ENV=development
 
 RUN npx create-strapi-app@${STRAPI_VERSION} app \
   --no-run \
   --skip-cloud \
-  --dbclient=postgres
+  --dbclient=postgres \
+  --dbhost=${DATABASE_HOST} \
+  --dbport=${DATABASE_PORT} \
+  --dbname=${DATABASE_NAME} \
+  --dbusername=${DATABASE_USERNAME} \
+  --dbpassword=${DATABASE_PASSWORD}
 
 WORKDIR /opt/app
 
 ENV NODE_ENV=production
 
-RUN npm run build
+RUN yarn build
 
 
 FROM node:20-alpine AS production
@@ -49,4 +61,4 @@ EXPOSE 1337
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://localhost:1337/_health || exit 1
 
-CMD ["npm", "run", "start"]
+CMD ["yarn", "start"]
