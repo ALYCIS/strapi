@@ -1,48 +1,45 @@
-FROM node:20-bullseye-slim AS build
+FROM node:20-alpine AS build
 
-RUN apt-get update && apt-get install -y \
-  build-essential \
+RUN apk add --no-cache \
   python3 \
   make \
   g++ \
   git \
-  libvips-dev \
-  && rm -rf /var/lib/apt/lists/*
+  vips-dev
 
 WORKDIR /opt/app
 
-COPY package.json ./
-
-ENV NODE_ENV=development
-
-RUN npm config set fetch-retry-maxtimeout 600000 -g \
-  && npm install --include=dev --verbose
+RUN corepack enable
 
 COPY . .
 
+ARG NODE_ENV
+ENV NODE_ENV=development
+
+RUN yarn install
+
 ENV NODE_ENV=production
 
-RUN npm run build
+RUN yarn build
 
 
-FROM node:20-bullseye-slim AS production
+FROM node:20-alpine AS production
 
-RUN apt-get update && apt-get install -y \
-  libvips-dev \
-  wget \
-  && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+  vips \
+  wget
 
 ENV NODE_ENV=production
 
 WORKDIR /opt/app
 
-COPY --from=build /opt/app/package.json ./
-COPY --from=build /opt/app/package-lock.json ./
-
-RUN npm ci --omit=dev \
-  && npm cache clean --force
+RUN corepack enable
 
 COPY --from=build /opt/app ./
+
+RUN yarn workspaces focus --production || yarn install --immutable --mode=skip-builds
+
+RUN yarn cache clean || true
 
 RUN chown -R node:node /opt/app
 
@@ -53,4 +50,4 @@ EXPOSE 1337
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD wget --quiet --tries=1 --spider http://localhost:1337/_health || exit 1
 
-CMD ["npm", "run", "start"]
+CMD ["yarn", "start"]
