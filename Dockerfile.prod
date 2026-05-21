@@ -1,58 +1,56 @@
-services:
-  strapi:
-    container_name: strapi
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
-    image: strapi-custom:latest
-    restart: always
-    environment:
-      NODE_ENV: production
-      HOST: 0.0.0.0
-      PORT: 1337
+FROM node:20-alpine AS build
 
-      DATABASE_CLIENT: postgres
-      DATABASE_HOST: strapiDB
-      DATABASE_PORT: 5432
-      DATABASE_NAME: ${DATABASE_NAME}
-      DATABASE_USERNAME: ${DATABASE_USERNAME}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+RUN apk add --no-cache \
+  build-base \
+  gcc \
+  autoconf \
+  automake \
+  zlib-dev \
+  libpng-dev \
+  bash \
+  vips-dev \
+  git \
+  python3 \
+  make \
+  g++
 
-      APP_KEYS: ${APP_KEYS}
-      API_TOKEN_SALT: ${API_TOKEN_SALT}
-      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
-      TRANSFER_TOKEN_SALT: ${TRANSFER_TOKEN_SALT}
-      JWT_SECRET: ${JWT_SECRET}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-    ports:
-      - "127.0.0.1:1337:1337"
-    networks:
-      - strapi
-    depends_on:
-      strapiDB:
-        condition: service_healthy
+WORKDIR /opt/app
 
-  strapiDB:
-    container_name: strapiDB
-    image: postgres:16-alpine
-    restart: always
-    environment:
-      POSTGRES_USER: ${DATABASE_USERNAME}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-      POSTGRES_DB: ${DATABASE_NAME}
-    volumes:
-      - strapi-data:/var/lib/postgresql/data
-    networks:
-      - strapi
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME} -d ${DATABASE_NAME}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+COPY package.json ./
 
-volumes:
-  strapi-data:
+RUN npm config set fetch-retry-maxtimeout 600000 -g \
+  && npm install
 
-networks:
-  strapi:
-    driver: bridge
+COPY . .
+
+ENV NODE_ENV=production
+
+RUN npm run build
+
+
+FROM node:20-alpine AS production
+
+RUN apk add --no-cache vips-dev wget
+
+ENV NODE_ENV=production
+
+WORKDIR /opt/app
+
+COPY --from=build /opt/app/package.json ./
+COPY --from=build /opt/app/package-lock.json ./
+
+RUN npm ci --omit=dev \
+  && npm cache clean --force
+
+COPY --from=build /opt/app ./
+
+RUN chown -R node:node /opt/app
+
+USER node
+
+EXPOSE 1337
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:1337/_health || exit 1
+
+CMD ["npm", "run", "start"]
