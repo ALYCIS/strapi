@@ -3,7 +3,6 @@ services:
     container_name: strapi
     image: vshadbolt/strapi:5.46.0
     restart: always
-    env_file: .env
     environment:
       NODE_ENV: production  # Overrides the development value from .env
     ports:
